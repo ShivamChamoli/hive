@@ -19,9 +19,11 @@ package main
 import (
 	"flag"
 	golog "log"
+	"net/http"
 	"time"
 
 	"github.com/golang/glog"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -139,6 +141,12 @@ func (writer glogWriter) Write(data []byte) (n int, err error) {
 func main() {
 	defer glog.Flush()
 	cmd := newRootCommand()
+
+	log.Debug("starting /metrics http handler")
+	http.Handle("/metrics", promhttp.Handler())
+	go http.ListenAndServe(":2112", nil)
+	log.Info("started /metrics http handler on port 2112")
+
 	err := cmd.Execute()
 	if err != nil {
 		log.Fatal(err)
