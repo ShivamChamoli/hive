@@ -886,11 +886,12 @@
   version = "v1.0.0"
 
 [[projects]]
-  digest = "1:7c7cfeecd2b7147bcfec48a4bf622b4879e26aec145a9e373ce51d0c23b16f6b"
+  digest = "1:199e20b01944e69cf3b28b0cd6eefdd655ad511a882c26c5daacc342854b2bf4"
   name = "github.com/prometheus/client_golang"
   packages = [
     "prometheus",
     "prometheus/internal",
+    "prometheus/promauto",
     "prometheus/promhttp",
   ]
   pruneopts = "NUT"
@@ -2107,6 +2108,7 @@
     "github.com/openshift/library-go/pkg/operator/events",
     "github.com/openshift/library-go/pkg/operator/resource/resourcemerge",
     "github.com/openshift/library-go/pkg/operator/resource/resourceread",
+    "github.com/prometheus/client_golang/prometheus/promauto",
     "github.com/prometheus/client_golang/prometheus/promhttp",
     "github.com/sirupsen/logrus",
     "github.com/spf13/cobra",

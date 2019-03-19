@@ -23,6 +23,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	log "github.com/sirupsen/logrus"
 
 	batchv1 "k8s.io/api/batch/v1"
@@ -70,6 +72,17 @@ const (
 	clusterDeploymentGenerationAnnotation = "hive.openshift.io/cluster-deployment-generation"
 	clusterImageSetNotFoundReason         = "ClusterImageSetNotFound"
 	clusterImageSetFoundReason            = "ClusterImageSetFound"
+)
+
+var (
+	metricReconcilesTotal = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "hive_cluster_deployment_controller_reconciles_total",
+		Help: "Total number of cluster deployment controller reconciles since process was started.",
+	})
+	metricReconcileErrorsTotal = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "hive_cluster_deployment_controller_reconcile_errors_total",
+		Help: "Total number of cluster deployment controller reconcile errors since process was started.",
+	})
 )
 
 // Add creates a new ClusterDeployment Controller and adds it to the Manager with default RBAC. The Manager will set fields on the Controller
@@ -139,6 +152,15 @@ type ReconcileClusterDeployment struct {
 // +kubebuilder:rbac:groups=hive.openshift.io,resources=clusterimagesets,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=hive.openshift.io,resources=clusterimagesets/status,verbs=get;update;patch
 func (r *ReconcileClusterDeployment) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+	metricReconcilesTotal.Inc()
+	result, err := r.reconcile(request)
+	if err != nil {
+		metricReconcileErrorsTotal.Inc()
+	}
+	return result, err
+}
+
+func (r *ReconcileClusterDeployment) reconcile(request reconcile.Request) (reconcile.Result, error) {
 	// Fetch the ClusterDeployment instance
 	cd := &hivev1.ClusterDeployment{}
 	err := r.Get(context.TODO(), request.NamespacedName, cd)
