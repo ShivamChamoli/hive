@@ -31,8 +31,11 @@ import (
 	fedv1alpha1 "github.com/kubernetes-sigs/federation-v2/pkg/apis/core/v1alpha1"
 	"github.com/openshift/hive/pkg/apis"
 	"github.com/openshift/hive/pkg/controller"
+	"github.com/openshift/hive/pkg/controller/utils"
+	"github.com/openshift/hive/pkg/metrics"
 	apiextv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	crv1alpha1 "k8s.io/cluster-registry/pkg/apis/clusterregistry/v1alpha1"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
@@ -147,7 +150,23 @@ func main() {
 	go http.ListenAndServe(":2112", nil)
 	log.Info("started /metrics http handler on port 2112")
 
-	err := cmd.Execute()
+	metricsScheme := scheme.Scheme
+	if err := apis.AddToScheme(metricsScheme); err != nil {
+		log.Fatal(err)
+	}
+
+	metricsClient, err := utils.GetKubeClient(metricsScheme)
+	if err != nil {
+		log.WithError(err).Fatal("error creating metrics kube client")
+	}
+	mc := metrics.Calculator{
+		Client:   metricsClient,
+		Interval: 2 * time.Minute,
+	}
+	go mc.Run()
+	log.Info("started metrics calculator goroutine")
+
+	err = cmd.Execute()
 	if err != nil {
 		log.Fatal(err)
 	}
