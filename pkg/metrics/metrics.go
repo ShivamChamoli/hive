@@ -26,6 +26,7 @@ import (
 
 	hivev1 "github.com/openshift/hive/pkg/apis/hive/v1alpha1"
 
+	batchv1 "k8s.io/api/batch/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -38,6 +39,15 @@ var (
 		Name: "hive_cluster_deployments_installed_total",
 		Help: "Total number of cluster deployments that are successfully installed.",
 	})
+	metricInstallJobsTotal = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "hive_install_jobs_total",
+		Help: "Total number of install jobs that exist in Hive.",
+	})
+	// installJobLabel is the label used for counting the number of install jobs in Hive
+	installJobLabel = "hive.openshift.io/install"
+
+	// uninstallJobLabel is the label used for counting the number of uninstall jobs in Hive
+	uninstallJobLabel = "hive.openshift.io/uninstall"
 )
 
 // Calculator runs in a goroutine and periodically calculates and publishes
@@ -74,6 +84,22 @@ func (mc *Calculator) Run() {
 		}
 		metricClusterDeploymentsTotal.Set(float64(total))
 		metricClusterDeploymentsInstalledTotal.Set(float64(installedTotal))
+
+		//install job metrics
+		installJobs := &batchv1.JobList{}
+		err = mc.Client.List(context.Background(), &client.ListOptions{}, installJobs)
+		if err != nil {
+			log.WithError(err).Error("error listing install jobs")
+		}
+		installJobsTotal := 0
+		for _, installJob := range installJobs.Items {
+			if installJob.Labels[installJobLabel] == "true" {
+				log.Debug("inside", installJobsTotal)
+				installJobsTotal = installJobsTotal + 1
+			}
+		}
+		metricInstallJobsTotal.Set(float64(installJobsTotal))
+		mcLog.WithField("totalInstallJobs", installJobsTotal)
 
 		time.Sleep(mc.Interval)
 	}
